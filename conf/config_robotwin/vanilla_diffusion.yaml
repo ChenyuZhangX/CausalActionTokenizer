@@ -1,0 +1,70 @@
+exp_name: '${now:%Y%m%d}_robotwin_H${data.horizon}_K${tokenizer.encoder.num_tokens}_CS${tokenizer.vq.codebook_size}_A${tokenizer.basic.action_dim}'
+
+hydra:
+  run:
+    dir: ./ckpt/${exp_name}
+
+seed: 42
+use_ddp: False
+use_wandb: False
+wandb_expname: '${exp_name}'
+wandb_project: 'vanilla'
+
+ckpt_dir: 'ckpt/${exp_name}'
+save_every_n_steps: 5000
+log_every_n_steps: 20
+dataloader_workers: 8
+
+train:
+    batch_size: 512
+    device: 'cuda'
+    epochs: 125
+    warmup: 0.33 # percentage of total training steps
+    learning_rate: 1e-4
+    weight_decay: 1e-2
+    dct_loss: True
+    loss_fn: l1
+
+data:
+    dataset_path: 'robotwin_franka_clean'
+    root_dir: 'data'
+    horizon: 20
+    max_episodes: null
+    action_only: True
+    debug: False
+    num_parallel_reads: 1
+    stats_path: 'data/robotwin_franka_clean/stats.json'
+    sampling_weight: 1.0
+
+tokenizer:
+    basic:
+        action_dim: 16
+        horizon: ${data.horizon}
+        is_causal: True
+    encoder:
+        encoder_mode: Dual
+        d_model: 128
+        add_vq_latent: False
+        d_vq: 16
+        num_layers: 8
+        num_tokens: 16
+        embedder:
+            embedder_type: 'patch'
+            channels_h: 4
+            channels_a: 8
+            use_weight_norm: True
+    vq:
+        vq_mode: VQ_EMA
+        codebook_size: 4096
+        threshold: 1.0
+        check_every: 100
+        max_reset_steps: 50000
+    decoder:
+        context_see_xt: True
+
+normalizer:
+    type: 'qq'
+    config:
+        clip: True
+        stats_path: ${data.stats_path}
+        action_dim: 16

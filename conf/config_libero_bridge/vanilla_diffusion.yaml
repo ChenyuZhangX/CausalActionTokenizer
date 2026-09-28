@@ -1,0 +1,92 @@
+exp_name: '${now:%Y%m%d}_catok_libero-bridge_H${data.horizon}_K${tokenizer.encoder.num_tokens}_CS${tokenizer.vq.codebook_size}'
+
+hydra:
+  run:
+    dir: ./ckpt/${exp_name}
+
+use_wandb: False
+wandb_expname: '${exp_name}'
+wandb_project: 'vanilla'
+
+ckpt_dir: 'ckpt/${exp_name}'
+save_every_n_steps: 5000
+log_every_n_steps: 20
+dataloader_workers: 2
+
+train:
+    batch_size: 2048
+    device: 'cuda'
+    epochs: 1000
+    warmup: 1 # percentage of total training steps
+    learning_rate: 1e-4
+    weight_decay: 1e-2
+    dct_loss: True
+    loss_fn: l1
+
+data:
+    root_dir: 'data'
+    extra_delta: False
+    horizon: 20
+    max_episodes: 10000
+    action_only: True
+    use_joint_state: False
+    debug: False
+    preload: True
+    datasets:
+        bridge:
+            weight: 1.0
+            stats_path: 'data/bridge/stats.json'
+            normalizer_method: 'bridge'
+            action_dim: 7
+        Libero_RLDS/libero_spatial_no_noops:
+            weight: 5.0
+            stats_path: 'data/Libero_RLDS/libero_spatial_no_noops/stats.json'
+            action_dim: 7
+        Libero_RLDS/libero_goal_no_noops:
+            weight: 5.0
+            stats_path: 'data/Libero_RLDS/libero_goal_no_noops/stats.json'
+            action_dim: 7
+        Libero_RLDS/libero_object_no_noops:
+            weight: 5.0
+            stats_path: 'data/Libero_RLDS/libero_object_no_noops/stats.json'
+            action_dim: 7
+        Libero_RLDS/libero_10_no_noops:
+            weight: 5.0
+            stats_path: 'data/Libero_RLDS/libero_10_no_noops/stats.json'
+            action_dim: 7
+
+tokenizer:
+    basic:
+        action_dim: 8
+        horizon: ${data.horizon}
+        is_causal: True
+        add_noise: True
+    encoder:
+        encoder_mode: Dual # Dual / Transformer
+        d_model: 256
+        add_vq_latent: False
+        d_vq: 16
+        num_layers: 8 # 4, 8, 16
+        num_tokens: 16
+        embedder:
+            embedder_type: 'patch'  # linear / patch
+            channels_h: 4
+            channels_a: 8
+            use_weight_norm: True
+    vq:
+        vq_mode: VQ_EMA   # VQ / VQ_EMA / RVQ_EMA / null
+        codebook_size: 4096
+        threshold: 1.0
+        check_every: 100
+        max_reset_steps: 50000
+    decoder:
+        context_see_xt: True
+    flow:
+        use_logit_normal: False
+        logit_normal_mean: 0.0
+        logit_normal_std: 1.0
+
+normalizer:
+    type: 'qq'
+    config:
+        clip: True
